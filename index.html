@@ -2,35 +2,47 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suika Game - Advanced Bomb Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Suika Game Pro - Custom Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
     <style>
-        body { margin: 0; background: #2c3e50; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Helvetica', sans-serif; }
+        body { 
+            margin: 0; background: #2c3e50; 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; overflow: hidden; font-family: 'Helvetica', sans-serif;
+            touch-action: none; /* iPadのスクロール防止 */
+        }
         
-        /* UIレイアウト */
-        #ui-container { position: absolute; width: 800px; height: 750px; pointer-events: none; z-index: 10; }
+        #ui-container { 
+            position: absolute; width: 100%; max-width: 800px; height: 100%; 
+            pointer-events: none; z-index: 10; 
+        }
+        
         .side-panel { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 20px; }
         
         /* 左側パネル: スコアとボム */
-        #left-panel { left: 0; top: 50px; width: 150px; pointer-events: auto; }
-        .score-box { background: #fff; border: 4px solid #8b5a2b; border-radius: 15px; width: 100px; padding: 10px; text-align: center; font-weight: bold; }
-        
-        /* 巨大な正円ボムボタン */
+        #left-panel { left: 10px; top: 40px; width: 120px; pointer-events: auto; }
+        .score-box { 
+            background: #fff; border: 4px solid #8b5a2b; border-radius: 15px; 
+            width: 90px; padding: 10px; text-align: center; font-weight: bold; font-size: 14px;
+        }
+
+        /* 巨大なボムボタン (正円) */
         #bomb-btn { 
-            width: 100px; height: 100px; background: #e74c3c; color: white; border: none; 
-            border-radius: 50%; border-bottom: 8px solid #c0392b; cursor: pointer; 
-            font-size: 18px; font-weight: bold; transition: 0.1s; 
+            width: 90px; height: 90px; background: #e74c3c; color: white; border: none; 
+            border-radius: 50%; border-bottom: 6px solid #c0392b; cursor: pointer; 
+            font-size: 16px; font-weight: bold; transition: 0.1s; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: flex; flex-direction: column; justify-content: center;
         }
-        #bomb-btn:active { transform: translateY(4px); border-bottom-width: 2px; }
-        #bomb-btn.active { background: #f1c40f; border-bottom-color: #f39c12; color: #000; }
-        #bomb-btn.disabled { background: #95a5a6; border-bottom-color: #7f8c8d; cursor: not-allowed; }
+        #bomb-btn:active { transform: scale(0.95); }
+        #bomb-btn.active { background: #f1c40f; border-bottom-color: #f39c12; color: #000; animation: blink 0.5s infinite alternate; }
+        @keyframes blink { from { opacity: 1; } to { opacity: 0.7; } }
+        #bomb-btn.disabled { background: #95a5a6; border-bottom-color: #7f8c8d; cursor: not-allowed; opacity: 0.5; }
 
-        /* 右側パネル: 次予告と進化 */
-        #right-panel { right: 0; top: 50px; width: 150px; }
-        .next-box { background: #fff; border: 4px solid #8b5a2b; border-radius: 15px; width: 80px; padding: 10px; text-align: center; font-weight: bold; }
-        #evo-wheel { background: rgba(255, 255, 255, 0.8); border: 4px solid #8b5a2b; border-radius: 50px; padding: 15px; display: flex; flex-direction: column; gap: 8px; align-items: center; margin-top: 20px; }
+        /* 右側パネル: 次予告と進化の輪 */
+        #right-panel { right: 10px; top: 40px; width: 120px; }
+        .next-box { background: #fff; border: 4px solid #8b5a2b; border-radius: 15px; width: 70px; padding: 10px; text-align: center; font-weight: bold; font-size: 12px; }
+        #evo-wheel { background: rgba(255, 255, 255, 0.8); border: 4px solid #8b5a2b; border-radius: 30px; padding: 10px; display: flex; flex-direction: column; gap: 5px; align-items: center; margin-top: 10px; }
         .evo-item { border-radius: 50%; border: 1px solid #333; }
     </style>
 </head>
@@ -38,19 +50,23 @@
 
 <div id="ui-container">
     <div id="left-panel" class="side-panel">
-        <div class="score-box">SCORE<br><span id="score-val">0</span></div>
+        <div class="score-box">SCORE<br><span id="score-val" style="font-size: 20px;">0</span></div>
         <button id="bomb-btn">BOMB<br><span id="bomb-val">1</span></button>
     </div>
     <div id="right-panel" class="side-panel">
-        <div class="next-box">NEXT<br><div id="next-preview" style="width:40px;height:40px;margin:5px auto;border-radius:50%;"></div></div>
-        <div id="evo-wheel">
-            <div style="font-size:12px; font-weight:bold; margin-bottom:5px;">進化</div>
-            <!-- 進化の輪を動的に生成 -->
-        </div>
+        <div class="next-box">NEXT<br><div id="next-preview" style="width:30px;height:30px;margin:5px auto;border-radius:50%;"></div></div>
+        <div id="evo-wheel"><div style="font-size:10px; font-weight:bold;">進化</div></div>
     </div>
 </div>
 
 <script>
+/**
+ * 素材URLの設定
+ * 画像や音声をGitHub等にアップロードしたら、ここを書き換えてください。
+ * 例: const ASSET_URL = 'https://yourname.github.io/my-suika/assets/';
+ */
+const ASSET_URL = './assets/'; 
+
 const FRUIT_TYPES = [
     { size: 18, score: 2, color: 0xff4d4d }, { size: 25, score: 4, color: 0xff7675 },
     { size: 32, score: 8, color: 0xa29bfe }, { size: 40, score: 16, color: 0xffab00 },
@@ -62,44 +78,62 @@ const FRUIT_TYPES = [
 
 let score = 0, bombCount = 1, nextLevel = Math.floor(Math.random() * 5);
 let currentFruit = null, playerCloud = null, canDrop = true, isBombActive = false;
-let storedFruitLevel = 0; // ボムキャンセルのために元のフルーツを保存
+let storedFruitLevel = 0;
 
 const config = {
-    type: Phaser.AUTO, width: 450, height: 750, backgroundColor: '#fef1d2',
-    physics: { default: 'matter', matter: { gravity: { y: 0.8 }, enableSleeping: false, debug: false } },
+    type: Phaser.AUTO,
+    width: 450,
+    height: 750,
+    backgroundColor: '#fef1d2',
+    physics: {
+        default: 'matter',
+        matter: { 
+            gravity: { y: 0.8 }, // 本家風のゆっくりした落下
+            enableSleeping: false,
+            debug: false 
+        }
+    },
     scene: { preload: preload, create: create, update: update }
 };
 
 const game = new Phaser.Game(config);
 
-function preload() {}
+function preload() {
+    // 画像を差し替える場合は以下のコメントアウトを外して設定してください
+    /*
+    for(let i=0; i<11; i++) this.load.image(`fruit${i}`, `${ASSET_URL}fruit${i}.png`);
+    this.load.image('bomb', `${ASSET_URL}bomb.png`);
+    this.load.image('cloud', `${ASSET_URL}cloud.png`);
+    this.load.audio('merge_se', `${ASSET_URL}merge.mp3`);
+    this.load.audio('bomb_se', `${ASSET_URL}bomb.mp3`);
+    */
+}
 
 function create() {
-    // 地面と壁の作成（地面に'floor'ラベルを付与）
     this.matter.world.setBounds(0, 0, 450, 750, 32, true, true, false, true);
-    const floor = this.matter.add.rectangle(225, 750, 450, 10, { isStatic: true, label: 'floor' });
+    this.matter.add.rectangle(225, 750, 450, 20, { isStatic: true, label: 'floor' });
 
-    // 進化の輪のUI表示
+    // 進化の輪のUI
     const evoWheel = document.getElementById('evo-wheel');
     FRUIT_TYPES.forEach(t => {
         const item = document.createElement('div');
         item.className = 'evo-item';
-        item.style.width = (t.size/3.5) + 'px';
-        item.style.height = (t.size/3.5) + 'px';
+        item.style.width = (t.size/4) + 'px';
+        item.style.height = (t.size/4) + 'px';
         item.style.background = "#" + t.color.toString(16).padStart(6, '0');
         evoWheel.appendChild(item);
     });
 
-    // クラウド（キャラクター）
+    // キャラクター（クラウド）
     playerCloud = this.add.container(225, 60);
-    const cloudBody = this.add.ellipse(0, 0, 90, 50, 0xffffff).setStrokeStyle(2, 0xdddddd);
+    const cloudBody = this.add.ellipse(0, 0, 100, 60, 0xffffff).setStrokeStyle(2, 0xdddddd);
     const eyeL = this.add.circle(-15, -5, 4, 0x333333);
     const eyeR = this.add.circle(15, -5, 4, 0x333333);
     playerCloud.add([cloudBody, eyeL, eyeR]);
 
     spawnFruit(this);
 
-    // マウス/タッチ移動
+    // 操作設定
     this.input.on('pointermove', (p) => {
         if (canDrop) {
             playerCloud.x = Phaser.Math.Clamp(p.x, 50, 400);
@@ -107,23 +141,25 @@ function create() {
         }
     });
 
-    // 離して落下
-    this.input.on('pointerup', () => { if (canDrop) dropFruit(this); });
+    this.input.on('pointerup', (p) => {
+        // ボムボタンをクリックした時は落下させない
+        if (p.x < 130 && p.y < 200) return; 
+        if (canDrop) dropFruit(this);
+    });
 
-    // ボムボタンのロジック（トグル/キャンセル）
+    // ボムボタン操作
     const btn = document.getElementById('bomb-btn');
-    btn.onclick = () => {
-        if (isBombActive) {
-            // キャンセル：元のフルーツに戻す
+    btn.onclick = (e) => {
+        e.stopPropagation();
+        if (isBombActive) { // キャンセル処理
             isBombActive = false;
             bombCount++;
             btn.classList.remove('active');
             if (currentFruit) currentFruit.destroy();
             spawnFruit(this, storedFruitLevel);
-        } else if (bombCount > 0 && canDrop) {
-            // ボム起動
+        } else if (bombCount > 0 && canDrop) { // 起動処理
             isBombActive = true;
-            storedFruitLevel = currentFruit.level; // 現在のフルーツを記憶
+            storedFruitLevel = currentFruit.level;
             bombCount--;
             btn.classList.add('active');
             if (currentFruit) currentFruit.destroy();
@@ -132,31 +168,28 @@ function create() {
         updateUI();
     };
 
-    // 衝突判定
+    // 衝突イベント
     this.matter.world.on('collisionstart', (e) => {
         e.pairs.forEach(pair => {
             const a = pair.bodyA;
             const b = pair.bodyB;
 
-            // ボムの衝突処理
             if (a.label === 'bomb' || b.label === 'bomb') {
-                const bombBody = (a.label === 'bomb') ? a : b;
-                const otherBody = (a.label === 'bomb') ? b : a;
+                const bomb = a.label === 'bomb' ? a : b;
+                const target = a.label === 'bomb' ? b : a;
 
-                if (otherBody.label === 'floor') {
-                    // 底に触れたら消える
-                    if (bombBody.gameObject) bombBody.gameObject.destroy();
-                } else if (otherBody.gameObject) {
-                    // フルーツに触れたら1つ消して自分も消える
-                    otherBody.gameObject.destroy();
-                    if (bombBody.gameObject) bombBody.gameObject.destroy();
-                    this.cameras.main.shake(150, 0.01);
+                if (target.label === 'floor') {
+                    if (bomb.gameObject) bomb.gameObject.destroy();
+                } else if (target.gameObject) {
+                    target.gameObject.destroy();
+                    if (bomb.gameObject) bomb.gameObject.destroy();
+                    this.cameras.main.shake(100, 0.01);
+                    // this.sound.play('bomb_se'); // 音声読み込み時
                 }
                 return;
             }
 
-            // 通常の合体
-            if (a.label === b.label && a.label !== 'floor') {
+            if (a.label === b.label && a.label !== 'floor' && a.gameObject && b.gameObject) {
                 mergeFruits(this, a, b);
             }
         });
@@ -165,7 +198,7 @@ function create() {
 
 function spawnFruit(scene, forcedLevel = null) {
     const x = playerCloud.x;
-    const y = playerCloud.y + 40;
+    const y = playerCloud.y + 45;
     
     if (isBombActive) {
         currentFruit = scene.add.circle(x, y, 22, 0x000000).setStrokeStyle(3, 0xff0000);
@@ -177,7 +210,6 @@ function spawnFruit(scene, forcedLevel = null) {
         currentFruit.level = level;
         if (forcedLevel === null) nextLevel = Math.floor(Math.random() * 5);
     }
-    
     updateUI();
     canDrop = true;
 }
@@ -200,12 +232,12 @@ function dropFruit(scene) {
         scene.matter.add.gameObject(scene.add.circle(x, y, type.size, type.color).setStrokeStyle(1, 0x000000, 0.2), f);
     }
     
-    scene.time.delayedCall(700, () => spawnFruit(scene));
+    scene.time.delayedCall(600, () => spawnFruit(scene));
 }
 
 function mergeFruits(scene, a, b) {
     const level = parseInt(a.label);
-    if (level >= FRUIT_TYPES.length - 1 || !a.gameObject || !b.gameObject) return;
+    if (level >= FRUIT_TYPES.length - 1) return;
     
     const nx = (a.position.x + b.position.x) / 2;
     const ny = (a.position.y + b.position.y) / 2;
@@ -218,6 +250,7 @@ function mergeFruits(scene, a, b) {
     const nf = scene.matter.add.circle(nx, ny, type.size, { label: next.toString(), restitution: 0.3 });
     scene.matter.add.gameObject(scene.add.circle(nx, ny, type.size, type.color).setStrokeStyle(1, 0x000000, 0.2), nf);
     
+    // scene.sound.play('merge_se'); // 音声読み込み時
     score += FRUIT_TYPES[level].score;
     if (score > 0 && score % 1000 < 50) { bombCount = Math.min(2, bombCount + 1); }
     updateUI();
@@ -226,8 +259,7 @@ function mergeFruits(scene, a, b) {
 function updateUI() {
     document.getElementById('score-val').innerText = score;
     document.getElementById('bomb-val').innerText = bombCount;
-    const nextP = document.getElementById('next-preview');
-    nextP.style.background = "#" + FRUIT_TYPES[nextLevel].color.toString(16).padStart(6, '0');
+    document.getElementById('next-preview').style.background = "#" + FRUIT_TYPES[nextLevel].color.toString(16).padStart(6, '0');
     
     const btn = document.getElementById('bomb-btn');
     if (bombCount === 0 && !isBombActive) btn.classList.add('disabled');
